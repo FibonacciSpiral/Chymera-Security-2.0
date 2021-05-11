@@ -226,6 +226,7 @@ void _tcpInit(void)
   {
     case 0:
       {
+        pingCount = 0;
         ResetNewBuffer();
         delay(1000);
         WriteString("+++");
@@ -460,6 +461,16 @@ void _ping(void)
 {
   if (pingFlag == 1)
   {
+    if((TCP_Flag==0) || (MQTT_Flag == 0))
+    {
+      MQTT_Flag = 0;
+      pingFlag = 0;
+      TCP_Flag = 0;
+      ResetNewBuffer();
+      WriteString("+++"); //turn off direct link
+      delay(400);
+      ResetNewBuffer();
+    }
     unsigned long currentMillis = millis();
     if ((currentMillis - _PingPrevMillis ) >= _KeepAliveTimeOut * 1000)
     {
@@ -500,6 +511,8 @@ void _ping(void)
         else
         {
             TCP_Flag = 0;
+            MQTT_Flag = 0;
+            pingFlag = 0;
         }
         pingCount = 0;
         delay(1000);
@@ -508,6 +521,8 @@ void _ping(void)
     if (end!=0)
     {
         delay(1000);
+        memset(inputString, '\0', UART_BUFFER_LENGTH);
+        memset(Message, '\0', MESSAGE_BUFFER_LENGTH);
         serialEvent();
     }
   }
@@ -671,6 +686,8 @@ void disconnect(void)
   PutCharacter((char)(DISCONNECT * 16));
   _sendLength(0);
   pingFlag = 0;
+  MQTT_Flag = 0;
+  TCP_Flag = 0;
   ResetNewBuffer();
  // WriteString("AT+CFUN=15\r\n"); //reboot the module to a known state
   //delay(3000);
@@ -1032,6 +1049,21 @@ void serialEvent()
         }
         else
         {
+            if ((strstr(newBuffer, "DISCONNECT") != NULL) || (strstr(newBuffer, "+UUSOCL: 0") != NULL) || (strstr(newBuffer, "ERROR") != NULL))
+            {
+                TCP_Flag = 0;
+                MQTT_Flag = 0;
+                pingFlag = 0;
+                ResetNewBuffer();
+                WriteString("+++"); //turn off direct link
+                delay(400);
+                ResetNewBuffer();
+                WriteString("AT+CFUN=15\r\n"); //reboot the module to a known state
+                delay(500);
+                ResetNewBuffer();
+            }
+            else
+            {
             uint8_t ReceivedMessageType = (inChar / 16) & 0x0F;
             uint8_t DUP = (inChar & DUP_Mask) / DUP_Mask;
             uint8_t QoS = (inChar & QoS_Mask) / QoS_Scale;
@@ -1102,10 +1134,6 @@ void serialEvent()
                             ++front;
                             --end;
                             delay(1); 
-                        }
-                        else
-                        {
-                            asm("nop");
                         }
                     }
                     //WriteString(" \r\n");
@@ -1185,6 +1213,7 @@ void serialEvent()
                     {
                         TCP_Flag = 0;
                         pingFlag = 0;
+                        MQTT_Flag = 0;
                         //WriteString("Disconnecting\r\n");
                         ResetNewBuffer();
                         WriteString("+++"); //turn off direct link
@@ -1192,6 +1221,22 @@ void serialEvent()
                         ResetNewBuffer();
                         WriteString("AT+CFUN=15\r\n"); //reboot the module to a known state
                         delay(1000);
+                        ResetNewBuffer();
+                    }
+                    else
+                    {
+                       // WriteString("Received :Unknown Message Type :");
+                        //PutCharacter(inChar);
+                        //WriteString("\r\n");
+                        TCP_Flag = 0;
+                        MQTT_Flag = 0;
+                        pingFlag = 0;
+                        ResetNewBuffer();
+                        WriteString("+++"); //turn off direct link
+                        delay(400);
+                        ResetNewBuffer();
+                        WriteString("AT+CFUN=15\r\n"); //reboot the module to a known state
+                        delay(500);
                         ResetNewBuffer();
                     }
                 }
@@ -1213,6 +1258,7 @@ void serialEvent()
                 ResetNewBuffer();
             }
         }
+    }
     }
     if (end==0) //if there's no more data to read
     {

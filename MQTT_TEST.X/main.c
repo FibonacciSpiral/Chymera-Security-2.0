@@ -162,11 +162,12 @@ int main(){
         {
             if((call_flag==0) )
             {
-                processing(); //don't try connecting to mqtt while disarmed
+                processing(); //don't try connecting to mqtt while making phonecall
             }
             if (once == 0)
             {
                 delay(250); //wait a bit for voltage to stabilize
+                pingCount = 0; //set this to 0 to initialize
                 once = 1;
                 srand(millis());
                 GPS_SEND_FREQ_MS = (int) ceil(GPS_SEND_FREQ_SEC*1000.0);
@@ -443,6 +444,7 @@ int main(){
             {
                 once = 0;
                 delay(250);
+                pingCount = 0; //set this to 0 to initialize
                 mINT1ClearIntFlag(); //clear int1 flag
                 IFS1CLR = 0x00000008; // Clear the CMP1 interrupt flag
             }
@@ -521,6 +523,7 @@ int main(){
         {
             if (enteringDataMode == 1)
             {
+                pingCount = 0; //set this to 0 to initialize
                 timeOutDataMode = 15 * 60 * 1000 + millis();
                 enteringDataMode = 0;
                 srand(millis());
