@@ -103,4 +103,5 @@ void _sendLength(int len);
 void _tcpInit(void);
 char _sendAT(char *command, unsigned long waitms);
 unsigned int _generateMessageID(void);
+int qualityCheck();
 #endif /* GSM_MQTT_H_ */

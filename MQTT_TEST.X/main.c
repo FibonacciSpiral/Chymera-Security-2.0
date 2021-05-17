@@ -517,7 +517,7 @@ int main(){
             if(gpsEnd!=0)
             {
                 ClearGpsBuffer();
-            }
+            }       
         }
         while (data_on) //user wants to update settings
         {

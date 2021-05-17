@@ -44,7 +44,6 @@ char inputString[UART_BUFFER_LENGTH];         // a string to hold incoming data
 int stringComplete = 0;  // whether the string is complete
 int pingCount = 0;
 const int pingLimit = 22; //number of pings before direct link needs to be renewed
-extern uint8_t myDeviceName[2];
 
 void serialEvent();
 
@@ -167,6 +166,7 @@ void begin(void)
   UARTinit();
   initInputCapture();
   _KeepAliveTimeOut = 45;
+  WriteString("A");
   WriteString("AT+CFUN=15\r\n"); //reboot the module to a known state
   delay(1000);
   WriteString("AT\r\n");
@@ -980,9 +980,14 @@ void serialEvent()
 {
     while(end!=0)//if there is data available
     {
-        char inChar = newBuffer[front];
-        ++front; //advance front by one
-        --end; //line gets shorter by 1
+        char inChar;
+        if(front < UART_BUFFER_LENGTH)
+        {
+            inChar = newBuffer[front];
+            ++front; //advance front by one
+            --end; //line gets shorter by 1 
+        }
+        
         if (TCP_Flag == 0)
         {
             if (myIndex < 200)
@@ -991,7 +996,11 @@ void serialEvent()
             }
             if (end==0) //there are no more characters available
             {
-                inputString[myIndex] = 0;
+                if(myIndex < 200)
+                {
+                    inputString[myIndex] = 0;
+                }
+                
                 stringComplete = 1;
                 //WriteString(inputString);
                 if (strstr(inputString, reply) != NULL)
@@ -1049,7 +1058,7 @@ void serialEvent()
         }
         else
         {
-            if ((strstr(newBuffer, "DISCONNECT") != NULL) || (strstr(newBuffer, "+UUSOCL: 0") != NULL) || (strstr(newBuffer, "ERROR") != NULL))
+            if (qualityCheck() == 0) //if bad words are found...
             {
                 TCP_Flag = 0;
                 MQTT_Flag = 0;
@@ -1058,6 +1067,7 @@ void serialEvent()
                 WriteString("+++"); //turn off direct link
                 delay(400);
                 ResetNewBuffer();
+                WriteString("B");
                 WriteString("AT+CFUN=15\r\n"); //reboot the module to a known state
                 delay(500);
                 ResetNewBuffer();
@@ -1080,9 +1090,13 @@ void serialEvent()
                 {
                     if (end!=0)
                     {
-                        inChar = newBuffer[front];
-                        ++front;
-                        --end;
+                        if(front < UART_BUFFER_LENGTH)
+                        {
+                            inChar = newBuffer[front];
+                            ++front;
+                            --end;
+                        }
+                        
                         //WriteString(inChar + "\r\n");
                         if ((((Cchar & 0xFF) == 'C') && ((inChar & 0xFF) == 'L') && (length == 0)) || (((Cchar & 0xFF) == '+') && ((inChar & 0xFF) == 'P') && (length == 0)) || ((Cchar & 0xFF == '+') && ((inChar & 0xFF) == 'U')))
                         {
@@ -1096,6 +1110,7 @@ void serialEvent()
                             WriteString("+++"); //turn off direct link
                             delay(400);
                             ResetNewBuffer();
+                            WriteString("C");
                             WriteString("AT+CFUN=15\r\n"); //reboot the module to a known state
                             delay(500);
                             ResetNewBuffer();
@@ -1128,7 +1143,7 @@ void serialEvent()
                     uint32_t a = 0;
                     while ((length-- > 0) && (end != 0))
                     {
-                        if (myIndex < UART_BUFFER_LENGTH)
+                        if ((myIndex < UART_BUFFER_LENGTH)&&(front < UART_BUFFER_LENGTH))
                         {
                             inputString[(uint32_t)myIndex++] = newBuffer[front];
                             ++front;
@@ -1156,9 +1171,15 @@ void serialEvent()
                         for (iter = 2; iter < TopicLength + 2; iter++)
                         {
                             //PutCharacter(inputString[iter]);
-                            Topic[PublishIndex++] = inputString[iter];
+                            if((PublishIndex < TOPIC_BUFFER_LENGTH)&&(iter < UART_BUFFER_LENGTH))
+                            {
+                                Topic[PublishIndex++] = inputString[iter];
+                            }
                         }
-                        Topic[PublishIndex] = 0;
+                        if (PublishIndex < TOPIC_BUFFER_LENGTH)
+                        {
+                            Topic[PublishIndex] = 0;
+                        }
                         //WriteString("' Message :'");
                         TopicLength = PublishIndex;
 
@@ -1168,14 +1189,23 @@ void serialEvent()
                         if (QoS != 0)
                         {
                             MessageSTART += 2;
-                            MessageID = inputString[TopicLength + 2UL] * 256 + inputString[TopicLength + 3UL];
+                            if (TopicLength + 3UL < UART_BUFFER_LENGTH)
+                            {
+                                MessageID = inputString[TopicLength + 2UL] * 256 + inputString[TopicLength + 3UL];
+                            }
                         }
                         for (iter = (MessageSTART); iter < (lengthLocal); iter++)
                         {
                             //PutCharacter(inputString[iter]);
-                            Message[PublishIndex++] = inputString[iter];
+                            if((PublishIndex < MESSAGE_BUFFER_LENGTH)&&(iter < UART_BUFFER_LENGTH))
+                            {
+                                 Message[PublishIndex++] = inputString[iter];
+                            }
                         }
-                        Message[PublishIndex] = 0;
+                        if (PublishIndex < MESSAGE_BUFFER_LENGTH)
+                        {
+                           Message[PublishIndex] = 0; 
+                        }
                         //WriteString("'\r\n");
                         MessageLength = PublishIndex;
                         if (QoS == 1)
@@ -1219,12 +1249,14 @@ void serialEvent()
                         WriteString("+++"); //turn off direct link
                         delay(400);
                         ResetNewBuffer();
+                        WriteString("D");
                         WriteString("AT+CFUN=15\r\n"); //reboot the module to a known state
                         delay(1000);
                         ResetNewBuffer();
                     }
                     else
                     {
+                        /*
                        // WriteString("Received :Unknown Message Type :");
                         //PutCharacter(inChar);
                         //WriteString("\r\n");
@@ -1238,6 +1270,7 @@ void serialEvent()
                         WriteString("AT+CFUN=15\r\n"); //reboot the module to a known state
                         delay(500);
                         ResetNewBuffer();
+                         * */
                     }
                 }
             }
@@ -1246,6 +1279,7 @@ void serialEvent()
                // WriteString("Received :Unknown Message Type :");
                 //PutCharacter(inChar);
                 //WriteString("\r\n");
+                /*
                 TCP_Flag = 0;
                 MQTT_Flag = 0;
                 pingFlag = 0;
@@ -1256,6 +1290,7 @@ void serialEvent()
                 WriteString("AT+CFUN=15\r\n"); //reboot the module to a known state
                 delay(500);
                 ResetNewBuffer();
+                 * */
             }
         }
     }
@@ -1264,4 +1299,170 @@ void serialEvent()
     {
         ResetNewBuffer();
     }
+}
+
+int qualityCheck() //returns 1 or 0
+{
+    char firstChar = '\0';
+    int charMatches = 0; //boolean to say whether we have a positive match
+    int Front = front;
+    int End = end; //copy global variable to local
+    const char ERROR[6] = "ERROR";
+    const char gpsString[6] = "gps-c";
+    const char socketClosed[6] = "+UUSO";
+    const char disconnect[6] = "DISCO";
+    char nextChar = '\0';
+    while(End != 0) //we are going to check the whole buffer for bad words
+    {
+        if(Front < UART_BUFFER_LENGTH)
+        {
+            firstChar = newBuffer[Front];
+            Front++;
+            End--; 
+        }
+        int i = 1;
+        int positiveCount = 1;
+        switch (firstChar) //check for bad words
+        {
+            case 'E': // check if word 'error' follows
+                charMatches = 1; //assume its true to begin
+                i = 1;
+                positiveCount = 1;
+                while(charMatches)
+                {
+                    if(Front < UART_BUFFER_LENGTH)
+                    {
+                       nextChar = newBuffer[Front]; 
+                    }
+                    if(i < 6)
+                    {
+                        if(nextChar == ERROR[i]) //if next char is found
+                        {
+                            charMatches = 1;
+                            Front++; //if char matches, then advance the pointers
+                            End--;
+                            i++;
+                            positiveCount++;
+                            if (positiveCount >= 5)
+                            {
+                                //we found a target word!
+                                return 0; //Return response
+                            }
+                        }
+                        else
+                        {
+                            i = 0;
+                            charMatches = 0; //we shouldn't parse for the word anymore
+                            //char did not match. Check the next character
+                        }
+                    }
+                }
+                break;
+            case 'g':
+                charMatches = 1; //assume its true to begin
+                i = 1;
+                positiveCount = 1;
+                while(charMatches)
+                {
+                    if(Front < UART_BUFFER_LENGTH)
+                    {
+                       nextChar = newBuffer[Front]; 
+                    }
+                    if(i < 6)
+                    {
+                        if(nextChar == gpsString[i]) //if next char is found
+                        {
+                            charMatches = 1;
+                            Front++; //if char matches, then advance the pointers
+                            End--;
+                            i++;
+                            positiveCount++;
+                            if (positiveCount >= 5)
+                            {
+                                //we found a target word!
+                                return 0; //Return response
+                            }
+                        }
+                        else
+                        {
+                            i = 0;
+                            charMatches = 0; //we shouldn't parse for the word anymore
+                            //char did not match. Check the next character
+                        }
+                    }
+                }
+                break;
+            case '+':
+                charMatches = 1; //assume its true to begin
+                i = 1;
+                positiveCount = 1;
+                while(charMatches)
+                {
+                    if(Front < UART_BUFFER_LENGTH)
+                    {
+                       nextChar = newBuffer[Front]; 
+                    }
+                    if(i < 6)
+                    {
+                        if(nextChar == socketClosed[i]) //if next char is found
+                        {
+                            charMatches = 1;
+                            Front++; //if char matches, then advance the pointers
+                            End--;
+                            i++;
+                            positiveCount++;
+                            if (positiveCount >= 5)
+                            {
+                                //we found a target word!
+                                return 0; //Return response
+                            }
+                        }
+                        else
+                        {
+                            i = 0;
+                            charMatches = 0; //we shouldn't parse for the word anymore
+                            //char did not match. Check the next character
+                        }
+                    }
+                }
+                break;
+                case 'D':
+                charMatches = 1; //assume its true to begin
+                i = 1;
+                positiveCount = 1;
+                while(charMatches)
+                {
+                    if(Front < UART_BUFFER_LENGTH)
+                    {
+                       nextChar = newBuffer[Front]; 
+                    }
+                    if(i < 6)
+                    {
+                        if(nextChar == disconnect[i]) //if next char is found
+                        {
+                            charMatches = 1;
+                            Front++; //if char matches, then advance the pointers
+                            End--;
+                            i++;
+                            positiveCount++;
+                            if (positiveCount >= 5)
+                            {
+                                //we found a target word!
+                                return 0; //Return response
+                            }
+                        }
+                        else
+                        {
+                            i = 0;
+                            charMatches = 0; //we shouldn't parse for the word anymore
+                            //char did not match. Check the next character
+                        }
+                    }
+                }
+                break;
+            default:
+                break; // code to be executed if n doesn't match any cases
+        }
+    }
+    return 1; //whole string was checked and no bad words were found
 }

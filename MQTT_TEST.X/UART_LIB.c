@@ -145,8 +145,11 @@ void ClearGpsBuffer()
       {
          //copy the stuff
          char character = UARTGetDataByte(UART1);
-         newBuffer[end] = character;
-         end++;
+         if (end < UART_BUFFER_LENGTH)
+         {
+             newBuffer[end] = character;
+             end++;
+         }
       }
       
       if (U1STAbits.OERR == 1)//if an overflow occurs, clear out the fifo
@@ -185,8 +188,11 @@ void ClearGpsBuffer()
       {
          //copy the stuff
          char character = UARTGetDataByte(UART2);
-         gpsBuffer[gpsEnd] = character;
-         gpsEnd++;
+         if(gpsEnd < UART_BUFFER_LENGTH)
+         {
+            gpsBuffer[gpsEnd] = character;
+            gpsEnd++;
+         }
       }
       
       if (U2STAbits.OERR == 1)//if an overflow occurs, clear out the fifo
