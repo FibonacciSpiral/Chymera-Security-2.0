@@ -21,6 +21,8 @@ float stopBitUpperBound = 3.0 + tolerance;
 float stopBitLowerBound = 3.0 - tolerance;
 int bitCount = 0;
 uint16_t myDataBuffer = 0;
+int proxEnable = 1;
+int vibEnable = 1;
 
 //Remote receiver input is pin 49 on pic32
 
@@ -94,15 +96,31 @@ void __ISR(_INPUT_CAPTURE_4_VECTOR, IPL6SOFT) myInputCapture4Handler(void)
                         if(command == 1)
                         {
                             //arm command
-                            CMP1ConfigInt(CMP_INT_ENABLE | CMP_INT_PRIOR_7 | CMP_INT_SUB_PRI_1); // Enable CMP1
-                            IFS1CLR = 0x00000008; // Clear the CMP1 interrupt flag
-                            mINT1ClearIntFlag(); //clear int1 flag
-                            LATEbits.LATE4 = 1; //turn on proximity sensor
-                            IEC0bits.INT1IE = 1; // enable INT1
+                            if (proxEnable)
+                            {
+                                CMP1ConfigInt(CMP_INT_ENABLE | CMP_INT_PRIOR_7 | CMP_INT_SUB_PRI_1); // Enable CMP1
+                                IFS1CLR = 0x00000008; // Clear the CMP1 interrupt flag
+                                mINT1ClearIntFlag(); //clear int1 flag
+                                LATEbits.LATE4 = 1; //turn on proximity sensor
+                            }
+                            if (vibEnable)
+                            {
+                                IEC0bits.INT1IE = 1; // enable INT1
+                            }
+                            else
+                            {
+                               IEC0bits.INT1IE = 0; // disable INT1 
+                            }
                             arm_flag = 1;
                             data_on = 0;
                             LATEbits.LATE2 = 1; //Turn on arm signal
-                            LATEbits.LATE6 = 0; //Turn off dataOn signal
+                            delay(500);
+                            LATEbits.LATE2 = 0;
+                            delay(200);
+                            LATEbits.LATE2 = 1;
+                            delay(500);
+                            LATEbits.LATE2 = 0;
+                          //  LATEbits.LATE6 = 0; //Turn off dataOn signal
                         }
                         else if (command == 2)
                         {
@@ -113,8 +131,10 @@ void __ISR(_INPUT_CAPTURE_4_VECTOR, IPL6SOFT) myInputCapture4Handler(void)
                             LATEbits.LATE4 = 0; //set proximity enable to off
                             arm_flag = 0;
                             data_on = 0;
-                            LATEbits.LATE2 = 0; //Turn off arm signal
-                            LATEbits.LATE6 = 0; //Turn off dataOn signal
+                            LATEbits.LATE2 = 1; //Disarm signal
+                            delay(1200);
+                            LATEbits.LATE2 = 0; //Disarm signal
+                          //  LATEbits.LATE6 = 0; //Turn off dataOn signal
                             mINT1ClearIntFlag(); //clear int1 flag
                             IFS1CLR = 0x00000008; // Clear the CMP1 interrupt flag
                         }
@@ -128,8 +148,19 @@ void __ISR(_INPUT_CAPTURE_4_VECTOR, IPL6SOFT) myInputCapture4Handler(void)
                             IFS1CLR = 0x00000008; // Clear the CMP1 interrupt flag
                             data_on = 1;
                             arm_flag = 0; // you wouldn't want both of these on at the same time
-                            LATEbits.LATE6 = 1; //Turn on dataOn signal
-                            LATEbits.LATE2 = 0; //Turn off arm signal
+                          //  LATEbits.LATE6 = 1; //Turn on dataOn signal
+                            LATEbits.LATE2 = 1; //dataon tone
+                            delay(1000);
+                            LATEbits.LATE2 = 0;
+                            delay(200);
+                            LATEbits.LATE2 = 1;
+                            delay(1000);
+                            LATEbits.LATE2 = 0;
+                            delay(200);
+                            LATEbits.LATE2 = 1;
+                            delay(1000);
+                            LATEbits.LATE2 = 0;
+                            delay(200);
                             mINT1ClearIntFlag(); //clear int1 flag
                             IFS1CLR = 0x00000008; // Clear the CMP1 interrupt flag 
                         }

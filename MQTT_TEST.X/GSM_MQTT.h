@@ -77,6 +77,12 @@ extern volatile char newBuffer[UART_BUFFER_LENGTH];
 extern int pingCount;
 extern const int pingLimit; //number of pings before direct link needs to be renewed
 extern float GPS_SEND_FREQ_SEC;
+extern int contTrackOnAlarmEnable;
+extern int proxEnable;
+extern int vibEnable;
+extern int gpsEnable;
+extern int callEnable;
+extern char myPhoneNumber[20];
 
 // Function declarations
 void begin(void);

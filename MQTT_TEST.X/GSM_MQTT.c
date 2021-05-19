@@ -139,8 +139,105 @@ void OnMessage(char *Topic, int TopicLength, char *Message, int MessageLength)
       GPS_SEND_FREQ_SEC = 1200.0;
       publish(0, 0, 0, _generateMessageID(), "GiselleLFreude/feeds/ack-feed", "ACK");
   }
-
-  
+  else if ((strcmp(Message, "contTrackEnable"))==0)
+  {
+      if (contTrackOnAlarmEnable == 0)
+      {
+          contTrackOnAlarmEnable = 1;
+      }
+      else
+      {
+          contTrackOnAlarmEnable = 0;
+      }
+      
+      publish(0, 0, 0, _generateMessageID(), "GiselleLFreude/feeds/ack-feed", "ACK");
+  }
+  else if ((strcmp(Message, "proxEnable"))==0)
+  {
+      proxEnable = 1;
+      publish(0, 0, 0, _generateMessageID(), "GiselleLFreude/feeds/ack-feed", "ACK");
+  }
+  else if ((strcmp(Message, "proxDisable"))==0)
+  {
+      proxEnable = 0;
+      publish(0, 0, 0, _generateMessageID(), "GiselleLFreude/feeds/ack-feed", "ACK");
+  }
+  else if ((strcmp(Message, "vibEnable"))==0)
+  {
+      vibEnable = 1;
+      publish(0, 0, 0, _generateMessageID(), "GiselleLFreude/feeds/ack-feed", "ACK");
+  }
+  else if ((strcmp(Message, "vibDisable"))==0)
+  {
+      vibEnable = 0;
+      publish(0, 0, 0, _generateMessageID(), "GiselleLFreude/feeds/ack-feed", "ACK");
+  }
+  else if ((strcmp(Message, "gpsEnable"))==0)
+  {
+      gpsEnable = 1;
+      publish(0, 0, 0, _generateMessageID(), "GiselleLFreude/feeds/ack-feed", "ACK");
+  }
+  else if ((strcmp(Message, "gpsDisable"))==0)
+  {
+      gpsEnable = 0;
+      publish(0, 0, 0, _generateMessageID(), "GiselleLFreude/feeds/ack-feed", "ACK");
+  }
+  else if ((strcmp(Message, "callEnable"))==0)
+  {
+      callEnable = 1;
+      publish(0, 0, 0, _generateMessageID(), "GiselleLFreude/feeds/ack-feed", "ACK");
+  }
+  else if ((strcmp(Message, "callDisable"))==0)
+  {
+      callEnable = 0;
+      publish(0, 0, 0, _generateMessageID(), "GiselleLFreude/feeds/ack-feed", "ACK");
+  }
+  else if (strstr(Message, "numChange")!=0) //11th character contains first part of phone number
+  {
+      char temp[20] = {'\0'};
+      int i;
+      int j = 0;
+      char character = Message[10];
+      for(i = 11; ((i<26)&&(character!= '\0')); i++)
+      {
+          if ((character >= 0x30)&&(character <= 0x39)) //if the input is a numeric number
+          {
+              temp[j] = character;
+              j++;
+          }
+          else
+          {
+              //do nothing
+          }
+          character = Message[i];
+      }
+      //by now temp should have something
+      if (strlen(temp)==10)
+      {
+          memset(myPhoneNumber, '\0', 20);
+          strcat(myPhoneNumber, "ATD");
+          strcat(myPhoneNumber, temp);
+          strcat(myPhoneNumber, ";\r\n");
+          publish(0, 0, 0, _generateMessageID(), "GiselleLFreude/feeds/ack-feed", "ACK");
+      }
+      else if (strlen(temp)==11) //then a country code must have been given
+      { //this segment has not been tested. Android code never lets this happen when it probably should
+          memset(myPhoneNumber, '\0', 20);
+          strcat(myPhoneNumber, "ATD");
+          int i;
+          for(i=0; i<10; i++)
+          {
+              myPhoneNumber[i+3] = temp[i+1];
+          }
+          strcat(myPhoneNumber, ";\r\n");
+          publish(0, 0, 0, _generateMessageID(), "GiselleLFreude/feeds/ack-feed", "ACK");
+      }
+      else
+      {
+          //we got something pretty weird?
+          //don't update phone number
+      }
+  }
   /*
      Topic        :Name of the topic from which message is coming
      TopicLength  :Number of characters in topic name
@@ -166,7 +263,7 @@ void begin(void)
   UARTinit();
   initInputCapture();
   _KeepAliveTimeOut = 45;
-  WriteString("A");
+  //WriteString("A");
   WriteString("AT+CFUN=15\r\n"); //reboot the module to a known state
   delay(1000);
   WriteString("AT\r\n");
@@ -1067,7 +1164,7 @@ void serialEvent()
                 WriteString("+++"); //turn off direct link
                 delay(400);
                 ResetNewBuffer();
-                WriteString("B");
+               // WriteString("B");
                 WriteString("AT+CFUN=15\r\n"); //reboot the module to a known state
                 delay(500);
                 ResetNewBuffer();
@@ -1110,7 +1207,7 @@ void serialEvent()
                             WriteString("+++"); //turn off direct link
                             delay(400);
                             ResetNewBuffer();
-                            WriteString("C");
+                         //   WriteString("C");
                             WriteString("AT+CFUN=15\r\n"); //reboot the module to a known state
                             delay(500);
                             ResetNewBuffer();
@@ -1249,7 +1346,7 @@ void serialEvent()
                         WriteString("+++"); //turn off direct link
                         delay(400);
                         ResetNewBuffer();
-                        WriteString("D");
+                      //  WriteString("D");
                         WriteString("AT+CFUN=15\r\n"); //reboot the module to a known state
                         delay(1000);
                         ResetNewBuffer();
